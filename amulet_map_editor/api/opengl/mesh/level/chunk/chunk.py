@@ -53,6 +53,23 @@ class RenderChunk(RenderChunkBuilder):
     def __repr__(self):
         return f"RenderChunk({self._coords[0]}, {self._coords[1]})"
 
+    @property
+    def bounds(self) -> SelectionBox:
+        """The bounding box of the chunk."""
+        return SelectionBox.create_chunk_box(self.cx, self.cz)
+
+    def is_in_frustum(self, planes: numpy.ndarray) -> bool:
+        """
+        Check if the chunk is in the view frustum.
+        :param planes: The planes of the view frustum.
+        :return: True if the chunk is in the view frustum, False otherwise.
+        """
+        points = self.bounds.points
+        for plane in planes:
+            if numpy.all(numpy.dot(points, plane[:3]) + plane[3] < 0):
+                return False
+        return True
+
     def _setup(self):
         """Set up the opengl data which cannot be set up in another thread"""
         super()._setup()

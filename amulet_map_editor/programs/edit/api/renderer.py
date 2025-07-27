@@ -122,8 +122,8 @@ class Renderer(EditCanvasContainer):
         self.render_world.enable()
         self.fake_levels.enable()
         self._chunk_generator.start()
-        self._draw_timer.Start(15)
-        self._gc_timer.Start(10000)
+        self._draw_timer.Start(30)
+        self._gc_timer.Start(30000)
 
     # TODO: move this logic into a resource pack reload method
     # def _load_resource_pack(self, *resource_packs: JavaResourcePack):

@@ -1,7 +1,7 @@
 import webbrowser
 from urllib.request import urlopen
 from urllib.error import URLError
-import json
+import orjson as json
 import wx
 import wx.adv
 import wx.lib.inspection

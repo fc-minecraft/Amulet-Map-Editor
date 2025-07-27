@@ -56,7 +56,8 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
         OpenGLResourcePackManagerStatic.__init__(self, resource_pack)
         ContextManager.__init__(self, context_identifier)
         self._vao = None  # vertex array object
-        self._vbo = None  # vertex buffer object
+        self._vbo = [None, None]  # vertex buffer object
+        self._vbo_index = 0
         self._shader = None  # the shader program
         self._transform_location = (
             None  # the reference within the shader program of the transformation matrix
@@ -95,8 +96,11 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
             self._texture_location = glGetUniformLocation(self._shader, "image")
             self._vao = glGenVertexArrays(1)  # create the array
             glBindVertexArray(self._vao)
-            self._vbo = glGenBuffers(1)  # and the buffer
-            glBindBuffer(GL_ARRAY_BUFFER, self._vbo)
+            self._vbo = glGenBuffers(2)  # and the buffer
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[0])
+            self._setup_opengl_attrs()
+            self._change_verts()
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[1])
             self._setup_opengl_attrs()
             self._change_verts()
             glBindVertexArray(0)
@@ -121,9 +125,10 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
     def change_verts(self, verts=None):
         """Modify the vertices in OpenGL."""
         log.debug(f"change_verts {self}")
+        self._vbo_index = 1 - self._vbo_index
         try:
             glBindVertexArray(self._vao)
-            glBindBuffer(GL_ARRAY_BUFFER, self._vbo)
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[self._vbo_index])
         except GLError:  # There seems to be errors randomly when binding the VBO
             log.debug(
                 f"Failed binding the OpenGL state for {self}. Trying to reload it."
@@ -133,7 +138,7 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
             if verts is None:
                 return
             glBindVertexArray(self._vao)
-            glBindBuffer(GL_ARRAY_BUFFER, self._vbo)
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[self._vbo_index])
         self._change_verts(verts)
         glBindVertexArray(0)
         glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -150,9 +155,9 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
     def unload(self):
         """Unload all opengl data"""
         log.debug(f"unload {self}")
-        if self._vbo is not None:
-            glDeleteBuffers(1, int(self._vbo))
-            self._vbo = None
+        if self._vbo[0] is not None:
+            glDeleteBuffers(2, self._vbo)
+            self._vbo = [None, None]
         if self._vao is not None:
             glDeleteVertexArrays(1, int(self._vao))
             self._vao = None
@@ -172,6 +177,8 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
         glUniform1i(self._texture_location, 0)
         try:
             glBindVertexArray(self._vao)
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[1 - self._vbo_index])
+            self._setup_opengl_attrs()
         except GLError:  # There seems to be errors randomly when binding the VBO
             log.debug(
                 f"Failed binding the OpenGL state for {self}. Trying to reload it."
@@ -179,6 +186,8 @@ class TriMesh(Drawable, OpenGLResourcePackManagerStatic, ContextManager):
             self.unload()
             self._setup()
             glBindVertexArray(self._vao)
+            glBindBuffer(GL_ARRAY_BUFFER, self._vbo[1 - self._vbo_index])
+            self._setup_opengl_attrs()
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, self._texture)
 

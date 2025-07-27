@@ -338,3 +338,20 @@ class Camera(CanvasContainer):
             self._transformation_matrix.flags.writeable = False
 
         return self._transformation_matrix
+
+    def frustum_planes(self) -> numpy.ndarray:
+        """
+        Get the view frustum planes in world space.
+        :return: An array of the 6 planes that make up the view frustum.
+        """
+        clip = self.transformation_matrix
+        return numpy.array(
+            [
+                clip[3] + clip[0],
+                clip[3] - clip[0],
+                clip[3] + clip[1],
+                clip[3] - clip[1],
+                clip[3] + clip[2],
+                clip[3] - clip[2],
+            ]
+        )

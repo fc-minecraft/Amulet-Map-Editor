@@ -88,6 +88,7 @@ class RenderLevel(OpenGLResourcePackManager, Drawable, ThreadedObject, ContextMa
     def _rebuild_generator(self) -> Generator[Optional[ChunkCoordinates], None, None]:
         """A generator of chunk coordinates to rebuild.
         This is an infinite length generator."""
+        frustum_planes = self.level.camera.frustum_planes()
         while True:
             if self._needs_rebuild:
                 self._needs_rebuild = False
@@ -135,7 +136,9 @@ class RenderLevel(OpenGLResourcePackManager, Drawable, ThreadedObject, ContextMa
                     # if the rebuild flag has been set go to the beginning
                     if self._needs_rebuild:
                         break
-                    yield chunk_coords
+                    render_chunk = self.chunk_manager.get(chunk_coords)
+                    if render_chunk is None or render_chunk.is_in_frustum(frustum_planes):
+                        yield chunk_coords
             else:
                 yield None
 
