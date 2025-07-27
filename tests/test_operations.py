@@ -2,23 +2,35 @@ import unittest
 import numpy
 from amulet.api.selection import SelectionGroup, SelectionBox
 from amulet.api.level import World
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.copy import copy
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.cut import cut
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.delete import delete
+from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.copy import (
+    copy,
+)
+from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.cut import (
+    cut,
+)
+from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.delete import (
+    delete,
+)
 from amulet.api.structure import structure_cache
 
 from amulet.api.wrapper import WorldFormatWrapper
+
 
 class MockWorld(World):
     def __init__(self, tempdir):
         self._level_wrapper = MockLevelWrapper()
         super().__init__(tempdir, self._level_wrapper)
         from amulet.api.block import Block
+
         self.block_palette.get_add_block(Block("minecraft", "air"))
 
     def get_chunk_slice_box(self, dimension, selection, create=True):
         for cx, cz in selection.chunk_locations():
-            yield self.get_chunk(cx, cz, dimension), (slice(0, 16), slice(0, 16), slice(0, 16)), selection
+            yield self.get_chunk(cx, cz, dimension), (
+                slice(0, 16),
+                slice(0, 16),
+                slice(0, 16),
+            ), selection
 
     def extract_structure_iter(self, selection, dimension):
         yield 0.5
@@ -27,12 +39,14 @@ class MockWorld(World):
     def get_chunk(self, cx, cz, dimension):
         return MockChunk(cx, cz)
 
+
 class MockChunk:
     def __init__(self, cx, cz):
         self.coordinates = (cx, cz)
         self.blocks = numpy.zeros((16, 16, 16))
         self.block_entities = {}
         self.changed = False
+
 
 class MockLevelWrapper(WorldFormatWrapper):
     def __init__(self):
@@ -113,7 +127,9 @@ class MockLevelWrapper(WorldFormatWrapper):
     def valid_formats(self) -> dict[str, str]:
         return {}
 
+
 from amulet.api.level import BaseLevel
+
 
 class MockStructure(BaseLevel):
     def __init__(self):
@@ -135,11 +151,12 @@ class MockStructure(BaseLevel):
     def _get_raw_chunk_data(self, cx: int, cz: int, dimension: str) -> bytes:
         return b""
 
+
 class OperationTest(unittest.TestCase):
     def setUp(self):
         self.world = MockWorld("temp")
         self.dimension = "overworld"
-        self.selection = SelectionGroup([SelectionBox((0,0,0), (16,16,16))])
+        self.selection = SelectionGroup([SelectionBox((0, 0, 0), (16, 16, 16))])
 
     def test_copy(self):
         from amulet_map_editor.programs.edit.api.operations import OperationSilentAbort
@@ -163,5 +180,6 @@ class OperationTest(unittest.TestCase):
             while True:
                 next(op)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,8 @@ if os.path.isfile(colours_path):
             colours = {
                 key: tuple(float(c) for c in val)
                 for key, val in colours.items()
-                if isinstance(val, list) and all(isinstance(c, (float, int)) for c in val)
+                if isinstance(val, list)
+                and all(isinstance(c, (float, int)) for c in val)
             }
         else:
             colours = {}
