@@ -136,11 +136,11 @@ class WorldPageUI(wx.Notebook, BasePageUI):
             dialog = wx.ProgressDialog(
                 "Closing World",
                 "Please be patient. This may take a little while.",
-                maximum=100,
+                maximum=10000,
                 style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_AUTO_HIDE,
             )
             dialog.Fit()
-            dialog.Update(99)
+            dialog.Update(9999)
             # wait until the world is closed then close the dialog
             while thread.is_alive():
                 wx.GetApp().Yield()

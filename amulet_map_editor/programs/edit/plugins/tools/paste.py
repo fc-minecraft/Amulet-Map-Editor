@@ -500,8 +500,9 @@ class PasteTool(wx.BoxSizer, DefaultBaseToolUI):
         ):
             structure = state["structure"]
             dimension = state["dimension"]
+            location = state.get("location")
         elif structure_cache:
-            structure, dimension = structure_cache.get_structure()
+            structure, dimension, location = structure_cache.get_structure()
         else:
             wx.MessageBox("A structure needs to be copied before one can be pasted.")
             return
@@ -512,7 +513,11 @@ class PasteTool(wx.BoxSizer, DefaultBaseToolUI):
         self.canvas.renderer.fake_levels.append(
             structure, dimension, (0, 0, 0), (1, 1, 1), (0, 0, 0)
         )
-        self._moving = True
+        if location is None:
+            self._moving = True
+        else:
+            self._moving = False
+            self.location = location
 
     def disable(self):
         super().disable()

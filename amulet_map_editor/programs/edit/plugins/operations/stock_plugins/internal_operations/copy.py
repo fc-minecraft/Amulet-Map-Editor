@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from amulet.api.level import BaseLevel
 
 
+from amulet_map_editor.programs.edit.api import globals
+
 def copy(
     world: "BaseLevel", dimension: Dimension, selection: SelectionGroup
 ) -> OperationReturnType:
@@ -20,6 +22,7 @@ def copy(
         yield 0, "Copying"
         structure = yield from world.extract_structure_iter(selection, dimension)
         structure_cache.add_structure(structure, structure.dimensions[0])
+        globals.paste_location = selection.selection_boxes[0].min
         raise OperationSilentAbort
     else:
         raise OperationError(

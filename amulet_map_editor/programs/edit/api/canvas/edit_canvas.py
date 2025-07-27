@@ -55,46 +55,6 @@ log = logging.getLogger(__name__)
 OperationType = Callable[[], OperationReturnType]
 
 
-def show_loading_dialog(
-    run: OperationType, title: str, message: str, parent: wx.Window
-) -> Any:
-    warnings.warn("show_loading_dialog is depreciated.", DeprecationWarning)
-    dialog = wx.ProgressDialog(
-        title,
-        message,
-        maximum=10_000,
-        parent=parent,
-        style=wx.PD_APP_MODAL
-        | wx.PD_ELAPSED_TIME
-        | wx.PD_REMAINING_TIME
-        | wx.PD_AUTO_HIDE,
-    )
-    dialog.Fit()
-    t = time.time()
-    try:
-        obj = run()
-        if isinstance(obj, GeneratorType):
-            try:
-                while True:
-                    progress = next(obj)
-                    if isinstance(progress, (list, tuple)):
-                        if len(progress) >= 2:
-                            message = progress[1]
-                        if len(progress) >= 1:
-                            progress = progress[0]
-                    if isinstance(progress, (int, float)) and isinstance(message, str):
-                        dialog.Update(
-                            min(9999, max(0, int(progress * 10_000))), message
-                        )
-                    wx.Yield()
-            except StopIteration as e:
-                obj = e.value
-    except Exception as e:
-        dialog.Update(10_000)
-        raise e
-    time.sleep(max(0.2 - time.time() + t, 0))
-    dialog.Update(10_000)
-    return obj
 
 
 class OperationThread(Thread):
@@ -117,12 +77,11 @@ class OperationThread(Thread):
         self._operation = operation
         self.stop = False
         self.message = message
-        self.progress = 0.0
+        self.progress = -1.0
         self.out = None
         self.error = None
 
     def run(self) -> None:
-        t = time.time()
         try:
             obj = self._operation()
             if isinstance(obj, GeneratorType):
@@ -142,7 +101,6 @@ class OperationThread(Thread):
                     self.out = e.value
         except BaseException as e:
             self.error = e
-        time.sleep(max(0.2 - time.time() + t, 0))
 
 
 class EditCanvas(BaseEditCanvas):
@@ -252,30 +210,39 @@ class EditCanvas(BaseEditCanvas):
                 | wx.PD_ELAPSED_TIME
                 | wx.PD_REMAINING_TIME
                 | wx.PD_AUTO_HIDE
-                | (wx.PD_CAN_ABORT * cancelable)
             )
-            dialog = wx.ProgressDialog(
-                title,
-                msg,
-                maximum=10_000,
-                parent=self,
-                style=style,
-            )
-            dialog.Fit()
+            if cancelable:
+                style |= wx.PD_CAN_ABORT
 
             # Set up a thread to run the actual operation
             op = OperationThread(operation, msg)
             # run the operation
             op.start()
-            while op.is_alive():
-                op.join(0.1)
-                dialog.Update(max(0, min(int(op.progress * 10_000), 9999)), op.message)
-                wx.Yield()
-                if dialog.WasCancelled():
-                    op.stop = True
 
-            dialog.Destroy()
-            wx.Yield()
+            if op.is_alive():
+                dialog = wx.ProgressDialog(
+                    title,
+                    msg,
+                    maximum=10_000,
+                    parent=self,
+                    style=style,
+                )
+                dialog.Fit()
+                t = time.time()
+                while op.is_alive():
+                    op.join(0.01)
+                    if op.progress >= 0:
+                        dialog.Update(
+                            max(0, min(int(op.progress * 10_000), 10_000)), op.message
+                        )
+                    elif time.time() - t > 1 and not dialog.IsShown():
+                        dialog.Show()
+
+                    wx.Yield()
+                    if dialog.WasCancelled():
+                        op.stop = True
+                dialog.Destroy()
+                wx.Yield()
 
             if op.error is not None:
                 # If there is any kind of error restore the last undo point
@@ -339,7 +306,7 @@ class EditCanvas(BaseEditCanvas):
             lambda: copy(self.world, self.dimension, self.selection.selection_group)
         )
 
-    def paste(self, structure: BaseLevel, dimension: Dimension):
+    def paste(self, structure: BaseLevel, dimension: Dimension, location: tuple):
         assert isinstance(
             structure, BaseLevel
         ), "Structure given is not a subclass of BaseLevel."
@@ -349,13 +316,21 @@ class EditCanvas(BaseEditCanvas):
         wx.PostEvent(
             self,
             ToolChangeEvent(
-                tool="Paste", state={"structure": structure, "dimension": dimension}
+                tool="Paste",
+                state={
+                    "structure": structure,
+                    "dimension": dimension,
+                    "location": location,
+                },
             ),
         )
 
     def paste_from_cache(self):
         if structure_cache:
-            self.paste(*structure_cache.get_structure())
+            structure, dimension = structure_cache.get_structure()
+            from amulet_map_editor.programs.edit.api import globals
+
+            self.paste(structure, dimension, globals.paste_location)
         else:
             wx.MessageBox("A structure needs to be copied before one can be pasted.")
 

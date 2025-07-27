@@ -17,7 +17,7 @@ from typing import Generator, Any, Tuple, Dict, Optional
 import struct
 import hashlib
 import os
-import json
+import orjson as json
 from PIL import Image
 import numpy
 import glob
