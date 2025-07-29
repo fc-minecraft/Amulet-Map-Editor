@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from amulet_map_editor.programs.edit.api import globals
 
+
 def copy(
     world: "BaseLevel", dimension: Dimension, selection: SelectionGroup
 ) -> OperationReturnType:

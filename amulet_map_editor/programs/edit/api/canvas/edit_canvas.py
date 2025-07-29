@@ -55,8 +55,6 @@ log = logging.getLogger(__name__)
 OperationType = Callable[[], OperationReturnType]
 
 
-
-
 class OperationThread(Thread):
     # The operation to run
     _operation: OperationType

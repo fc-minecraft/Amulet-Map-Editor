@@ -137,7 +137,9 @@ class RenderLevel(OpenGLResourcePackManager, Drawable, ThreadedObject, ContextMa
                     if self._needs_rebuild:
                         break
                     render_chunk = self.chunk_manager.get(chunk_coords)
-                    if render_chunk is None or render_chunk.is_in_frustum(frustum_planes):
+                    if render_chunk is None or render_chunk.is_in_frustum(
+                        frustum_planes
+                    ):
                         yield chunk_coords
             else:
                 yield None
