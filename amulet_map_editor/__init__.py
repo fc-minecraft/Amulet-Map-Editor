@@ -24,7 +24,6 @@ os.environ.setdefault(
 )
 
 from amulet_map_editor.api import config as CONFIG, lang
-from amulet_map_editor.api.framework.app import open_level, close_level
 
 
 # This is here because of the major change in the NBT library
