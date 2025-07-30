@@ -3,59 +3,108 @@ name: Build and Release
 on:
   push:
     branches:
-      - master
+      - '**'
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BRANCH_NAME: ${{ github.ref_name }}
+  COMMIT_SHA:  ${{ github.sha }}
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-        architecture: 'x64'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          architecture: 'x64'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install setuptools wheel pyinstaller~=5.6 build
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install setuptools wheel pyinstaller~=5.6 build
 
-    - name: Setup
-      run: |
-        export BDISTWHEELFREEZELIBS=true
-        python -m build
-        python -m pip install dist/amulet_map_editor-*.whl --upgrade
+      - name: Setup
+        run: |
+          $env:BDISTWHEELFREEZELIBS = "true"
+          python -m build
+          python -m pip install dist/amulet_map_editor-*.whl --upgrade
 
-    - name: PyInstaller build
-      run: |
-        python -m PyInstaller -y Amulet.spec
+      - name: PyInstaller build
+        run: |
+          python -m PyInstaller -y Amulet.spec
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.run_number }}
-        release_name: Release ${{ github.run_number }}
-        body: |
-          Automated release for commit ${{ github.sha }}
-        draft: false
-        prerelease: false
+      - name: List dist (Windows)
+        run: Get-ChildItem dist -Recurse
+        shell: pwsh
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/Amulet/amulet_app.exe
-        asset_name: amulet-map-editor-v${{ github.run_number }}.exe
-        asset_content_type: application/vnd.microsoft.portable-executable
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-windows-latest
+          path: |
+            dist/**/*.exe
+          if-no-files-found: warn
+
+  create_release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifacts from all jobs
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Decide tag / prerelease / names
+        id: vars
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA}"
+
+          # главный релиз: ветка main + коммит со словом release
+          if [[ "$BRANCH" == "main" && "${{ github.event.head_commit.message }}" == "release" ]]; then
+            echo "tag_name=release-${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "prerelease=false"                    >> $GITHUB_OUTPUT
+            echo "release_name=Release build"          >> $GITHUB_OUTPUT
+          # pre-release: ветка main, но без commit 'release'
+          elif [[ "$BRANCH" == "main" ]]; then
+            echo "tag_name=prerelease-${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "prerelease=true"                         >> $GITHUB_OUTPUT
+            echo "release_name=Prerelease build from main" >> $GITHUB_OUTPUT
+          # beta-релиз со сторонней ветки
+          else
+            echo "tag_name=beta-${BRANCH}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "prerelease=true"                              >> $GITHUB_OUTPUT
+            echo "release_name=Beta build from ${BRANCH}"       >> $GITHUB_OUTPUT
+          fi
+
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          tag:  ${{ steps.vars.outputs.tag_name }}
+          name: ${{ steps.vars.outputs.release_name }}
+          prerelease: ${{ steps.vars.outputs.prerelease }}
+          body: |
+            **Branch**:  ${{ steps.vars.outputs.branch }}
+            **Commit**:  ${{ steps.vars.outputs.commit }}
+
+            Built automatically by workflow run ${{ github.run_id }}.
+          artifacts: |
+            artifacts/**/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

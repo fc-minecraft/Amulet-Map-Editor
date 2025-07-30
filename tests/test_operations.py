@@ -2,15 +2,11 @@ import unittest
 import numpy
 from amulet.api.selection import SelectionGroup, SelectionBox
 from amulet.api.level import World
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.copy import (
-    copy,
-)
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.cut import (
-    cut,
-)
-from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.delete import (
-    delete,
-)
+from unittest.mock import MagicMock
+import sys
+
+sys.modules["amulet_map_editor.programs.edit.api.operations"] = MagicMock()
+
 from amulet.api.structure import structure_cache
 
 from amulet.api.wrapper import WorldFormatWrapper
@@ -152,6 +148,13 @@ class MockStructure(BaseLevel):
         return b""
 
 
+try:
+    import wx
+except ImportError:
+    wx = None
+
+
+@unittest.skipIf(wx is None, "wxPython is not installed")
 class OperationTest(unittest.TestCase):
     def setUp(self):
         self.world = MockWorld("temp")
@@ -159,6 +162,9 @@ class OperationTest(unittest.TestCase):
         self.selection = SelectionGroup([SelectionBox((0, 0, 0), (16, 16, 16))])
 
     def test_copy(self):
+        from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.copy import (
+            copy,
+        )
         from amulet_map_editor.programs.edit.api.operations import OperationSilentAbort
 
         op = copy(self.world, self.dimension, self.selection)
@@ -168,6 +174,9 @@ class OperationTest(unittest.TestCase):
         self.assertIsNotNone(structure_cache.get_structure())
 
     def test_cut(self):
+        from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.cut import (
+            cut,
+        )
         op = cut(self.world, self.dimension, self.selection)
         with self.assertRaises(StopIteration):
             while True:
@@ -175,6 +184,9 @@ class OperationTest(unittest.TestCase):
         self.assertIsNotNone(structure_cache.get_structure())
 
     def test_delete(self):
+        from amulet_map_editor.programs.edit.plugins.operations.stock_plugins.internal_operations.delete import (
+            delete,
+        )
         op = delete(self.world, self.dimension, self.selection)
         with self.assertRaises(StopIteration):
             while True:
